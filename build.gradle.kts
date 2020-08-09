@@ -1,11 +1,13 @@
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
+
 plugins {
 	id("org.springframework.boot") version "2.3.2.RELEASE"
 	id("io.spring.dependency-management") version "1.0.9.RELEASE"
 	war
 	kotlin("jvm") version "1.3.72"
 	kotlin("plugin.spring") version "1.3.72"
+	id("com.palantir.docker") version "0.22.1"
 }
 
 group = "com.url.shortener"
@@ -43,4 +45,18 @@ tasks.withType<KotlinCompile> {
 		freeCompilerArgs = listOf("-Xjsr305=strict")
 		jvmTarget = "1.8"
 	}
+}
+
+task<Copy>("unpack") {
+	val bootJar = tasks.getByName<org.springframework.boot.gradle.tasks.bundling.BootJar>("bootJar")
+	dependsOn(bootJar)
+	from(zipTree(bootJar.outputs.files.singleFile))
+	into("build/dependency")
+}
+
+docker {
+	val archiveBaseName = tasks.getByName<org.springframework.boot.gradle.tasks.bundling.BootJar>("bootJar").archiveBaseName.get()
+	name = "${project.group}/$archiveBaseName"
+	copySpec.from(tasks.getByName<Copy>("unpack").outputs).into("dependency")
+	buildArgs(mapOf("DEPENDENCY" to "dependency"))
 }
